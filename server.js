@@ -3,7 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { spawn } from 'child_process';
+import { spawn, exec } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -279,5 +279,11 @@ app.post('/api/settings/llm', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  addLog(`YouTube Automated Creator Server running on http://localhost:${PORT}`, "success");
+  const url = `http://localhost:${PORT}`;
+  addLog(`YouTube Automated Creator Server running on ${url}`, "success");
+  
+  const startCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+  exec(`${startCmd} ${url}`, (err) => {
+    if (err) addLog("Failed to auto-launch browser (you may need to open it manually).", "warning");
+  });
 });
