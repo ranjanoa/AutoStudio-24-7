@@ -1,0 +1,231 @@
+[
+  {
+    "id": "history",
+    "name": "History & Epic Mysteries",
+    "description": "Uncover mind-bending ancient secrets, forgotten battles, and legendary figures.",
+    "voice": "en-GB-SoniaNeural",
+    "voicePitch": "+0Hz",
+    "voiceRate": "+0%",
+    "aspectRatio": "9:16",
+    "durationSec": 45,
+    "themeColor": "#D97706",
+    "bgGradient": [
+      "#1C1917",
+      "#451A03",
+      "#0F172A"
+    ],
+    "promptTemplate": "Create a dramatic 45-second script about a shocking historical event or forgotten mystery.",
+    "presetTopics": [
+      "The Mysterious Disappearance of the Ninth Legion",
+      "Why Ancient Roman Concrete Heals Itself",
+      "The Secret Underground City of Derinkuyu",
+      "The Bizarre Dancing Plague of 1518",
+      "The Viking Ulfberht Swords: Technology Ahead of Its Time"
+    ]
+  },
+  {
+    "id": "kannada_jokes",
+    "name": "Kannada Fun & Local Jokes (ಕನ್ನಡ ಹಾಸ್ಯ)",
+    "description": " Hilarious local Kannada jokes, funny conversations & witty regional humor.",
+    "voice": "kn-IN-GaganNeural",
+    "voicePitch": "+0Hz",
+    "voiceRate": "+0%",
+    "aspectRatio": "9:16",
+    "durationSec": 30,
+    "themeColor": "#F59E0B",
+    "bgGradient": [
+      "#78350F",
+      "#451A03",
+      "#0F172A"
+    ],
+    "promptTemplate": "Create a funny 30-second Kannada comedy dialogue script with punchy Kannada jokes.",
+    "presetTopics": [
+      "Teacher vs Student Hilarious Exam Answer Joke",
+      "Doctor and Patient Funny Hospital Conversation",
+      "Bangalore Auto Driver Epic Traffic Negotiation Joke",
+      "Friend Borrowing Money Hilarious Reply Joke",
+      "Hotel Waiter vs Customer Masala Dosa Comedy"
+    ]
+  },
+  {
+    "id": "hindi_jokes",
+    "name": "Hindi Comedy & Riddles (हिंदी जोक्स)",
+    "description": "Funniest Hindi jokes, Santa Banta style comedy & mind-bending riddles.",
+    "voice": "hi-IN-MadhurNeural",
+    "voicePitch": "+0Hz",
+    "voiceRate": "+0%",
+    "aspectRatio": "9:16",
+    "durationSec": 30,
+    "themeColor": "#10B981",
+    "bgGradient": [
+      "#064E3B",
+      "#022C22",
+      "#0F172A"
+    ],
+    "promptTemplate": "Create a hilarious 30-second Hindi joke dialogue script with funny twist endings.",
+    "presetTopics": [
+      "Pappu Exam Hall Funny Reply Joke",
+      "Boss and Employee Hilarious Salary Increment Joke",
+      "Father and Son Android Phone Comedy",
+      "Shopkeeper vs Customer Price Bargaining Comedy",
+      "Chintu Smart Answer to Teacher Joke"
+    ]
+  },
+  {
+    "id": "kids",
+    "name": "Kids Fun & Story World",
+    "description": "Engaging, playful, and educational stories with fun animal facts and gentle bedtime tales.",
+    "voice": "en-US-AnaNeural",
+    "voicePitch": "+5Hz",
+    "voiceRate": "+5%",
+    "aspectRatio": "9:16",
+    "durationSec": 30,
+    "themeColor": "#EC4899",
+    "bgGradient": [
+      "#4C1D95",
+      "#831843",
+      "#1E1B4B"
+    ],
+    "promptTemplate": "Create an ultra-fun 30-second story for kids packed with enthusiasm.",
+    "presetTopics": [
+      "Why Do Sea Otters Hold Hands When Sleeping?",
+      "The Little Space Dragon Who Found a Shooting Star",
+      "5 Superpowers Animals Have That Humans Don't!",
+      "How Honeybees Tell Their Friends Where Flowers Are",
+      "The Friendly Whale Who Loved Playing Hide and Seek"
+    ]
+  },
+  {
+    "id": "trending",
+    "name": "Trending Tech & Viral News",
+    "description": "Breakdowns of cutting-edge AI tools, viral internet trends, and revolutionary tech launches.",
+    "voice": "en-US-EricNeural",
+    "voicePitch": "+0Hz",
+    "voiceRate": "+5%",
+    "aspectRatio": "9:16",
+    "durationSec": 40,
+    "themeColor": "#3B82F6",
+    "bgGradient": [
+      "#0F172A",
+      "#1E1B4B",
+      "#1E293B"
+    ],
+    "promptTemplate": "Create a fast-paced 40-second viral tech breaking news script.",
+    "presetTopics": [
+      "Humanoid Robots Are Now Working in Real Factories!",
+      "The Next Breakthrough in Quantum Computing Explained",
+      "3 AI Tools That Will Change How You Work Forever",
+      "Why Electric Aviation Is Closer Than You Think",
+      "The Synthetic Brain Chip That Let a Paralyzed Man Walk"
+    ]
+  },
+  {
+    "id": "politics",
+    "name": "Global Affairs & Geopolitics",
+    "description": "Objective, engaging summaries of world trade routes, global economies, and diplomatic developments.",
+    "voice": "en-US-BrianNeural",
+    "voicePitch": "-2Hz",
+    "voiceRate": "+0%",
+    "aspectRatio": "9:16",
+    "durationSec": 60,
+    "themeColor": "#8B5CF6",
+    "bgGradient": [
+      "#0F172A",
+      "#311B92",
+      "#111827"
+    ],
+    "promptTemplate": "Create a clear, unbiased 60-second geopolitical breakdown.",
+    "presetTopics": [
+      "The Geopolitical Importance of the Malacca Strait",
+      "How Semiconductor Chips Control Global Power",
+      "The Renewable Energy Race Between Superpowers",
+      "Why Global Supply Chains Are Being Rerouted in 2026",
+      "The Economics of Space Exploration and Mining Rights"
+    ]
+  },
+  {
+    "id": "scifi",
+    "name": "Sci-Fi & Cosmic Mysteries",
+    "description": "Deep space discoveries, black hole mysteries, and mind-bending physics universe questions.",
+    "voice": "en-US-SteffanNeural",
+    "voicePitch": "-3Hz",
+    "voiceRate": "-2%",
+    "aspectRatio": "9:16",
+    "durationSec": 45,
+    "themeColor": "#06B6D4",
+    "bgGradient": [
+      "#042F2E",
+      "#0F172A",
+      "#111827"
+    ],
+    "promptTemplate": "Create a awe-inspiring cosmic discovery script with mysterious sound and space facts.",
+    "presetTopics": [
+      "What Happens Inside a Supermassive Black Hole?",
+      "The Wow! Signal: Did We Intercept Alien Contact?",
+      "Rogue Planets: World Flying Through Space Without Suns",
+      "The James Webb Telescope Just Found Something Impossible",
+      "Is Time Travel Mathematically Permitted by Relativity?"
+    ]
+  },
+  {
+    "id": "scary",
+    "name": "Dark Folklore & Creepypasta",
+    "description": "Chilling urban legends, unresolved dark cases, and mysterious psychological phenomena.",
+    "voice": "en-US-AndrewNeural",
+    "voicePitch": "-4Hz",
+    "voiceRate": "-5%",
+    "aspectRatio": "9:16",
+    "durationSec": 50,
+    "themeColor": "#EF4444",
+    "bgGradient": [
+      "#18181B",
+      "#450A0A",
+      "#09090B"
+    ],
+    "promptTemplate": "Create a suspenseful, eerie story with chilling twists.",
+    "presetTopics": [
+      "The Unexplained Warning Broadcast of 1977",
+      "The Ghost Ship Mary Celeste: What Happened to the Crew?",
+      "The Dyatlov Pass Incident: The Mystery Unsolved",
+      "The Legend of the Missing Flight 19",
+      "The Voice Recorded in the Deepest Trench on Earth"
+    ]
+  },
+  {
+    "id": "panchatantra_hindi",
+    "name": "Panchatantra Stories (पंचतंत्र की कहानियाँ)",
+    "description": "Classic Indian moral stories from Panchatantra translated into engaging Hindi short tales.",
+    "voice": "hi-IN-MadhurNeural",
+    "voicePitch": "-2Hz",
+    "voiceRate": "-5%",
+    "aspectRatio": "9:16",
+    "durationSec": 45,
+    "themeColor": "#10B981",
+    "bgGradient": [
+      "#064E3B",
+      "#022C22",
+      "#0F172A"
+    ],
+    "promptTemplate": "Create a 45-second moral story in Hindi based on classic Panchatantra tales.",
+    "presetTopics": [
+      "The Monkey and the Crocodile",
+      "The Foolish Lion and the Clever Rabbit",
+      "The Tortoise and the Geese",
+      "The Elephant and the Sparrow",
+      "The Blue Jackal"
+    ]
+  },
+  {
+    "id": "custom_1790666717124",
+    "name": "New Custom Genre",
+    "description": "A dynamically generated AI genre.",
+    "voice": "en-US-ChristopherNeural",
+    "aspectRatio": "9:16",
+    "themeColor": "#8B5CF6",
+    "promptTemplate": "Create an exciting story about [topic].",
+    "presetTopics": [
+      "AI Revolution",
+      "Future Tech"
+    ]
+  }
+]
