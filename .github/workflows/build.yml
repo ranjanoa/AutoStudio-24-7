@@ -1,0 +1,72 @@
+name: Build AutoStudio EXE
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+
+    - name: Install Node Dependencies
+      run: npm install
+
+    - name: Build React Frontend
+      run: npm run build
+
+    - name: Install Python Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Install Executable Bundlers
+      run: |
+        npm install -g pkg
+        pip install pyinstaller
+
+    - name: Build Python EXE (Video Engine)
+      run: |
+        pyinstaller --onefile video_engine/generator.py
+        pyinstaller --onefile video_engine/youtube_uploader.py
+
+    - name: Build Node Server EXE
+      run: |
+        pkg server.js --targets node18-win-x64 --output autostudio-server.exe
+
+    - name: Package Distributable Release
+      run: |
+        mkdir AutoStudio-Release
+        cp autostudio-server.exe AutoStudio-Release/
+        cp -r dist/ AutoStudio-Release/dist/
+        mkdir AutoStudio-Release/video_engine
+        cp dist/generator.exe AutoStudio-Release/video_engine/
+        cp dist/youtube_uploader.exe AutoStudio-Release/video_engine/
+        cp video_engine/genres_config.json AutoStudio-Release/video_engine/
+        echo "@echo off" > AutoStudio-Release/start.bat
+        echo "start autostudio-server.exe" >> AutoStudio-Release/start.bat
+        echo "echo AutoStudio Server started on http://localhost:3001!" >> AutoStudio-Release/start.bat
+
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: AutoStudio-Windows-EXE
+        path: AutoStudio-Release
