@@ -6,10 +6,17 @@ export default function VideoGenerator({ genres, onGenerateVideo, onVideoComplet
   const [customTopic, setCustomTopic] = useState('');
   const [privacy, setPrivacy] = useState('unlisted');
   const [autoUpload, setAutoUpload] = useState(true);
+  const [noMusic, setNoMusic] = useState(false);
+  const [noVoice, setNoVoice] = useState(false);
+  const [scenes, setScenes] = useState(4);
+  const [language, setLanguage] = useState('en');
   
   const [isBuilding, setIsBuilding] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [completedVideo, setCompletedVideo] = useState(null);
+
+  const [uploadFile, setUploadFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const steps = [
     { title: "Script Storyboard", icon: FileText, desc: "AI writing high-CTR hook and 4 scenes" },
@@ -36,7 +43,11 @@ export default function VideoGenerator({ genres, onGenerateVideo, onVideoComplet
       genreId: selectedGenre,
       topic: customTopic.trim() || undefined,
       privacy,
-      autoUpload
+      autoUpload,
+      noMusic,
+      noVoice,
+      scenes,
+      language
     });
 
     clearInterval(stepInterval);
@@ -47,6 +58,32 @@ export default function VideoGenerator({ genres, onGenerateVideo, onVideoComplet
       setCompletedVideo(result.latestVideo);
       if (onVideoCompleted) onVideoCompleted(result.latestVideo);
     }
+  };
+
+  const handleManualUpload = async () => {
+    if (!uploadFile) return;
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('video', uploadFile);
+    formData.append('title', customTopic.trim() || 'Manual Upload from UI');
+    formData.append('privacy', privacy);
+    
+    try {
+      const res = await fetch('http://localhost:3001/api/upload-video', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Video uploaded to YouTube successfully!");
+        setUploadFile(null);
+      } else {
+        alert("Upload failed: " + data.error);
+      }
+    } catch (e) {
+      alert("Error uploading video: " + e.message);
+    }
+    setIsUploading(false);
   };
 
   const currentGenreObj = genres.find(g => g.id === selectedGenre) || genres[0];
@@ -137,8 +174,21 @@ export default function VideoGenerator({ genres, onGenerateVideo, onVideoComplet
                 <option value="private">Private (Draft)</option>
               </select>
             </div>
+            
+            <div style={{ flex: 1, marginLeft: '1rem' }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.3rem', fontSize: '0.85rem' }}>Language</label>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                style={{ width: '100%', background: 'rgba(0,0,0,0.4)', color: 'white', border: '1px solid var(--border-color)', padding: '0.5rem', borderRadius: '8px' }}
+              >
+                <option value="en">English</option>
+                <option value="de">German</option>
+                <option value="es">Spanish</option>
+              </select>
+            </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.2rem', marginLeft: '1rem' }}>
               <input
                 type="checkbox"
                 id="manualUploadCheck"
@@ -152,6 +202,28 @@ export default function VideoGenerator({ genres, onGenerateVideo, onVideoComplet
             </div>
           </div>
 
+          {/* Advanced Media Controls */}
+          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', marginTop: '-0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input type="checkbox" id="noMusicCheck" checked={noMusic} onChange={(e) => setNoMusic(e.target.checked)} style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }} />
+              <label htmlFor="noMusicCheck" style={{ fontSize: '0.85rem', cursor: 'pointer' }}>No Music</label>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input type="checkbox" id="noVoiceCheck" checked={noVoice} onChange={(e) => setNoVoice(e.target.checked)} style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }} />
+              <label htmlFor="noVoiceCheck" style={{ fontSize: '0.85rem', cursor: 'pointer' }}>No Voice</label>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label htmlFor="scenesSelect" style={{ fontSize: '0.85rem' }}>Scenes:</label>
+              <select id="scenesSelect" value={scenes} onChange={(e) => setScenes(Number(e.target.value))} style={{ background: 'rgba(0,0,0,0.4)', color: 'white', border: '1px solid var(--border-color)', padding: '0.2rem', borderRadius: '4px', fontSize: '0.85rem' }}>
+                <option value={1}>1 (Continuous)</option>
+                <option value={2}>2</option>
+                <option value={3}>3</option>
+                <option value={4}>4 (Standard)</option>
+                <option value={8}>8 (Long)</option>
+              </select>
+            </div>
+          </div>
+
           <button
             className="btn-primary"
             disabled={isBuilding}
@@ -161,6 +233,32 @@ export default function VideoGenerator({ genres, onGenerateVideo, onVideoComplet
             {isBuilding ? <RefreshCw size={20} className="spin" /> : <Sparkles size={20} />}
             {isBuilding ? "GENERATING VIDEO PIPELINE..." : `GENERATE ${currentGenreObj?.name.toUpperCase()} VIDEO`}
           </button>
+
+          {/* Direct Upload Section */}
+          <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem' }}>
+            <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Direct Local Video Upload</h4>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <input 
+                type="file" 
+                accept="video/mp4,video/x-m4v,video/*"
+                onChange={(e) => setUploadFile(e.target.files[0])}
+                style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}
+              />
+              <button 
+                className="btn-primary" 
+                disabled={!uploadFile || isUploading}
+                onClick={handleManualUpload}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', flexShrink: 0, opacity: (!uploadFile || isUploading) ? 0.5 : 1 }}
+              >
+                {isUploading ? <RefreshCw size={16} className="spin" /> : <Upload size={16} />}
+                {isUploading ? "UPLOADING..." : "UPLOAD TO YOUTUBE"}
+              </button>
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem', display: 'block' }}>
+              Uses the title and privacy settings from above.
+            </span>
+          </div>
+
         </div>
 
         {/* Live Pipeline Status Progress */}

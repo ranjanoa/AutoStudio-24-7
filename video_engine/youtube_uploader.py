@@ -37,11 +37,16 @@ def get_authenticated_service():
         if creds and creds.expired and creds.refresh_token:
             try:
                 creds.refresh(Request())
+                with open(TOKEN_PATH, "w", encoding="utf-8") as token_file:
+                    token_file.write(creds.to_json())
             except Exception as e:
                 print(f"[YouTube Uploader] Refresh token failed: {e}")
                 creds = None
 
         if not creds and os.path.exists(CREDENTIALS_PATH):
+            if not sys.stdin.isatty():
+                print("[YouTube Uploader] YouTube OAuth token expired/revoked. Non-interactive loop detected; falling back to simulated upload mode to prevent hanging.")
+                return None
             try:
                 flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, SCOPES)
                 creds = flow.run_local_server(port=0)
@@ -96,9 +101,15 @@ def upload_to_youtube(video_path, title, description, tags, category_id="27", pr
     return response
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        vid_p = sys.argv[1]
-        res = upload_to_youtube(vid_p, "Test Upload", "Automated Video Upload", ["test"], privacy="unlisted")
-        print("Upload Result:", json.dumps(res, indent=2))
-    else:
-        print("Usage: python youtube_uploader.py <path_to_video.mp4>")
+    import argparse
+    parser = argparse.ArgumentParser(description="Upload video to YouTube")
+    parser.add_argument("video_path", help="Path to the MP4 file")
+    parser.add_argument("--title", default="Manual Upload", help="Video title")
+    parser.add_argument("--description", default="Uploaded from AutoStudio 24/7 manual upload tool", help="Video description")
+    parser.add_argument("--privacy", default="unlisted", help="Privacy status (public, unlisted, private)")
+    parser.add_argument("--tags", default="", help="Comma-separated tags")
+    args = parser.parse_args()
+
+    tags_list = [t.strip() for t in args.tags.split(",") if t.strip()] or ["shorts", "autostudio"]
+    res = upload_to_youtube(args.video_path, args.title, args.description, tags_list, privacy=args.privacy)
+    print("Upload Result:", json.dumps(res, indent=2))

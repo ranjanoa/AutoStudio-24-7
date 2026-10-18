@@ -154,7 +154,7 @@ export default function App() {
         )}
 
         {activeTab === 'library' && (
-          <VideoLibrary videos={videos} />
+          <VideoLibrary videos={videos} onRefresh={fetchAllData} />
         )}
 
         {activeTab === 'settings' && (

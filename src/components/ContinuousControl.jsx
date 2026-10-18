@@ -9,9 +9,23 @@ export default function ContinuousControl({ status, genres, onUpdateAutomation }
   const [strategy, setStrategy] = useState(currentAuto.strategy || 'sequential');
   const [privacy, setPrivacy] = useState(currentAuto.privacy || 'unlisted');
   const [autoUpload, setAutoUpload] = useState(currentAuto.autoUpload !== false);
+  const validGenreIds = genres.map(g => g.id);
+  const initialValid = (currentAuto.selectedGenres || []).filter(id => validGenreIds.includes(id));
   const [selectedGenres, setSelectedGenres] = useState(
-    currentAuto.selectedGenres || genres.map(g => g.id)
+    initialValid.length > 0 ? initialValid : validGenreIds
   );
+
+  React.useEffect(() => {
+    const currentValidIds = genres.map(g => g.id);
+    setSelectedGenres(prev => {
+      const filtered = prev.filter(id => currentValidIds.includes(id));
+      return filtered.length > 0 ? filtered : currentValidIds;
+    });
+  }, [genres]);
+  const [noMusic, setNoMusic] = useState(currentAuto.noMusic || false);
+  const [noVoice, setNoVoice] = useState(currentAuto.noVoice || false);
+  const [scenes, setScenes] = useState(currentAuto.scenes || 4);
+  const [language, setLanguage] = useState(currentAuto.language || 'en');
   const [saving, setSaving] = useState(false);
 
   const toggleGenre = (genreId) => {
@@ -34,7 +48,11 @@ export default function ContinuousControl({ status, genres, onUpdateAutomation }
       strategy,
       privacy,
       autoUpload,
-      selectedGenres
+      selectedGenres,
+      noMusic,
+      noVoice,
+      scenes,
+      language
     });
     setSaving(false);
   };
@@ -177,6 +195,41 @@ export default function ContinuousControl({ status, genres, onUpdateAutomation }
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Advanced Media Controls */}
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-main)' }}>
+              Advanced Media Controls
+            </label>
+            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input type="checkbox" id="noMusicAutoCheck" checked={noMusic} onChange={(e) => setNoMusic(e.target.checked)} style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }} />
+                <label htmlFor="noMusicAutoCheck" style={{ fontSize: '0.9rem', cursor: 'pointer' }}>No Music</label>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input type="checkbox" id="noVoiceAutoCheck" checked={noVoice} onChange={(e) => setNoVoice(e.target.checked)} style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }} />
+                <label htmlFor="noVoiceAutoCheck" style={{ fontSize: '0.9rem', cursor: 'pointer' }}>No Voice</label>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <label htmlFor="scenesAutoSelect" style={{ fontSize: '0.9rem' }}>Scenes:</label>
+                <select id="scenesAutoSelect" value={scenes} onChange={(e) => setScenes(Number(e.target.value))} style={{ background: 'rgba(0,0,0,0.4)', color: 'white', border: '1px solid var(--border-color)', padding: '0.3rem', borderRadius: '6px', fontSize: '0.9rem' }}>
+                  <option value={1}>1 (Continuous)</option>
+                  <option value={2}>2</option>
+                  <option value={3}>3</option>
+                  <option value={4}>4 (Standard)</option>
+                  <option value={8}>8 (Long)</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <label htmlFor="languageAutoSelect" style={{ fontSize: '0.9rem' }}>Language:</label>
+                <select id="languageAutoSelect" value={language} onChange={(e) => setLanguage(e.target.value)} style={{ background: 'rgba(0,0,0,0.4)', color: 'white', border: '1px solid var(--border-color)', padding: '0.3rem', borderRadius: '6px', fontSize: '0.9rem' }}>
+                  <option value="en">English</option>
+                  <option value="de">German</option>
+                  <option value="es">Spanish</option>
+                </select>
+              </div>
             </div>
           </div>
 

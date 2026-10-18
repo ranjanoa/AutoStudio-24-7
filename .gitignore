@@ -28,4 +28,10 @@ storage/
 .env
 client_secrets.json
 token.json
+replicatetoken.txt
 __pycache__/
+
+# Temporary generated files
+*.mp3
+subtitle_temp*
+

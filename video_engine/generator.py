@@ -35,9 +35,15 @@ env_path = os.path.join(BASE_DIR, ".env")
 if os.path.exists(env_path):
     with open(env_path, "r", encoding="utf-8") as f:
         for line in f:
-            if "=" in line:
-                k, v = line.strip().split("=", 1)
-                os.environ[k.strip()] = v.strip()
+            line_str = line.strip()
+            if "=" in line_str and not line_str.startswith("#"):
+                k, v = line_str.split("=", 1)
+                os.environ[k.strip()] = v.strip().strip("'\"")
+
+if os.environ.get("LLM_API_KEY"):
+    print("[AI Studio 24/7] LLM_API_KEY detected for dynamic script generation.")
+if os.environ.get("PEXELS_API_KEY"):
+    print("[AI Studio 24/7] PEXELS_API_KEY detected for HD video footage download.")
 
 STORAGE_DIR = os.path.join(BASE_DIR, "storage")
 VIDEOS_DIR = os.path.join(STORAGE_DIR, "output_videos")
@@ -65,21 +71,30 @@ def get_genre_config(genre_id):
             return g
     return genres[0] if genres else None
 
-def generate_dynamic_script_llm(genre_info, user_topic=None):
+def generate_dynamic_script_llm(genre_info, user_topic=None, num_scenes=4, language="en"):
     api_key = os.environ.get("LLM_API_KEY")
     if not HAS_REQUESTS or not api_key:
         return None
     
-    topic = user_topic if user_topic else random.choice(genre_info.get("presetTopics", ["Amazing Discovery"]))
+    import random
+    random_seeds = ["involving a strange invention", "about an unsolved historical mystery", "about a bizarre natural phenomenon", "about a secret society or group", "involving ancient technology", "about a forgotten war or battle", "involving a crazy coincidence", "about a weird animal or creature", "about an unexplained space anomaly", "involving a heist or crime", "about an abandoned place", "involving a famous person's secret"]
+    random_seed = random.choice(random_seeds)
+    topic_instruction = f"the topic '{user_topic}'" if user_topic else f"a completely random, highly unique, and rarely discussed topic {random_seed} (pick something obscure)"
     genre_name = genre_info.get("name", "Unknown")
     prompt_template = genre_info.get("promptTemplate", "Create a short story.")
     
+    lang_map = {"en": "English", "de": "German", "es": "Spanish"}
+    lang_name = lang_map.get(language, "English")
+    
     prompt = f"""
-You are a viral YouTube Shorts script writer. Generate a script for the genre '{genre_name}' about the topic '{topic}'.
+You are a viral YouTube Shorts script writer. Generate a script for the genre '{genre_name}' about {topic_instruction}.
 {prompt_template}
+
+CRITICAL REQUIREMENT: The script MUST be 100% unique, highly creative, and entirely different from any previous generations. Never use the same plot, hook, or scenes twice. Introduce unexpected twists. Use this random seed to guarantee novelty: {random.randint(100000000, 999999999)}_{time.time()}.
 
 Return ONLY valid JSON exactly matching this structure (no markdown formatting, no code blocks, just raw JSON):
 {{
+    "topic": "A 2-4 word summary of the exact subject of this video",
     "title": "A catchy YouTube title",
     "hook": "An engaging first sentence to hook the viewer.",
     "scenes": [
@@ -94,18 +109,21 @@ Return ONLY valid JSON exactly matching this structure (no markdown formatting, 
     "tags": ["tag1", "tag2", "tag3", "shorts"],
     "affiliateNote": "A call to action or pinned comment note."
 }}
-Ensure you return exactly 4 scenes.
+Ensure you return exactly {num_scenes} scenes.
+CRITICAL REQUIREMENT 2: The entire script (title, hook, scene text, subtitles) MUST BE WRITTEN IN THE '{lang_name}' LANGUAGE. Do not output English unless the language is 'en'.
+CRITICAL REQUIREMENT 3: DO NOT translate the JSON keys. The JSON keys MUST remain exactly as shown in the structure (e.g. "topic", "title", "hook", "scenes", "subtitle", "text", etc.). ONLY translate the values.
 """
     try:
         text = ""
-        if api_key.startswith("AIza"):
-            print("[AI Engine] Requesting dynamic script from Google Gemini API...")
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        if api_key.startswith("AIza") or api_key.startswith("AQ."):
+            model_name = "nano-banana-pro-preview" if genre_info.get("id") == "storybook" else "gemini-flash-lite-latest"
+            print(f"[AI Engine] Requesting dynamic script from Google Gemini API ({model_name})...")
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
             payload = {
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {"temperature": 0.8}
             }
-            res = requests.post(url, json=payload, timeout=20)
+            res = requests.post(url, json=payload, timeout=45)
             if res.status_code == 200:
                 text = res.json().get("candidates", [])[0].get("content", {}).get("parts", [])[0].get("text", "")
             else:
@@ -133,7 +151,7 @@ Ensure you return exactly 4 scenes.
                 print(f"[AI Engine Error] OpenAI API returned {res.status_code}: {res.text}")
                 return None
         else:
-            print("[AI Engine Error] Unrecognized API Key format. Must start with 'AIza' (Gemini) or 'sk-' (OpenAI).")
+            print("[AI Engine Error] Unrecognized API Key format. Must start with 'AIza' or 'AQ.' (Gemini) or 'sk-' (OpenAI).")
             return None
             
         if text.startswith("```json"):
@@ -147,16 +165,16 @@ Ensure you return exactly 4 scenes.
         
         full_text = script_json.get("hook", "") + " " + " ".join([s.get("text", "") for s in script_json.get("scenes", [])])
         script_json["fullText"] = full_text
-        script_json["topic"] = topic
+        script_json["topic"] = script_json.get("topic", user_topic if user_topic else "Unknown Topic")
         print("[AI Engine] AI dynamic script generated successfully!")
         return script_json
     except Exception as e:
         print(f"[AI Engine Error] Failed to generate dynamic script: {e}")
     return None
 
-def generate_script_content(genre_info, user_topic=None):
+def generate_script_content(genre_info, user_topic=None, num_scenes=4, language="en"):
     if os.environ.get("LLM_API_KEY"):
-        dyn = generate_dynamic_script_llm(genre_info, user_topic)
+        dyn = generate_dynamic_script_llm(genre_info, user_topic, num_scenes, language)
         if dyn: return dyn
         print("[AI Engine Warning] Falling back to static templates...")
         
@@ -524,6 +542,42 @@ def generate_script_content(genre_info, user_topic=None):
         tags = ["creepy", "darkhistory", "unexplained", "horrorstories", "scary"]
         affiliate_note = "🕸️ Listen to horror audiobooks free: Check pinned comment link!"
 
+    elif genre_id == "racing":
+        title = f"Hypercar Spotlight: {topic}"
+        hook = f"Is the {topic_clean} the greatest car ever built? Let's find out."
+        scenes = [
+            {
+                "subtitle": "THE SPEED MACHINE 🏎️",
+                "text": f"Engineers pushed the absolute limits of physics to build the {topic_clean}.",
+                "highlightWords": ["Engineers", "limits", "physics"],
+                "searchQuery": topic_clean,
+                "stockKeyword": f"{topic_clean} hypercar drifting cinematic"
+            },
+            {
+                "subtitle": "UNDER THE HOOD ⚙️",
+                "text": f"Featuring a screaming engine and aggressive aerodynamics, it dominates the track.",
+                "highlightWords": ["screaming", "engine", "dominates"],
+                "searchQuery": f"{topic_clean} engine",
+                "stockKeyword": f"{topic_clean} supercar racing"
+            },
+            {
+                "subtitle": "UNMATCHED PERFORMANCE 🏁",
+                "text": f"0 to 60 happens in the blink of an eye, leaving the competition in the dust.",
+                "highlightWords": ["blink", "competition", "dust"],
+                "searchQuery": topic_clean,
+                "stockKeyword": f"{topic_clean} fast track blur"
+            },
+            {
+                "subtitle": "DREAM CAR? 🚀",
+                "text": "Would you take this beast for a spin? Let me know down in the comments!",
+                "highlightWords": ["beast", "spin", "comments"],
+                "searchQuery": topic_clean,
+                "stockKeyword": f"{topic_clean} sunset highway"
+            }
+        ]
+        tags = ["supercars", "racing", "hypercars", "cargram", "shorts"]
+        affiliate_note = "🏎️ Get the best car accessories: Check pinned comment link!"
+
     else:
         title = f"Story: {topic}"
         hook = f"Here is a story about {topic_clean}."
@@ -559,6 +613,11 @@ def generate_script_content(genre_info, user_topic=None):
         ]
         tags = ["custom", "shorts", "generated"]
         affiliate_note = "✨ Configure your AI key to unlock this genre!"
+
+    if num_scenes and isinstance(num_scenes, int):
+        scenes = scenes[:num_scenes]
+        while len(scenes) < num_scenes:
+            scenes.append(scenes[-1])
 
     full_voice_text = f"{hook} " + " ".join([s["text"] for s in scenes])
     
@@ -690,7 +749,72 @@ def fetch_thematic_image(query, stock_kw, index, video_id="v", target_width=1080
     img.save(cache_path)
     return img
 
-def render_procedural_background_video(genre_id, index, duration_sec, output_mp4, width=1080, height=1920):
+def render_procedural_background_video(genre_id, index, duration_sec, output_mp4, width=1080, height=1920, scene_data=None):
+    pexels_key = os.environ.get("PEXELS_API_KEY")
+    if pexels_key and scene_data:
+        query = scene_data.get("searchQuery", "cinematic landscape")
+        stock_kw = scene_data.get("stockKeyword", query)
+        search_terms = extract_search_keywords(query, stock_kw)
+        orientation = "portrait" if height > width else "landscape"
+        headers = {"Authorization": pexels_key}
+        
+        for term in search_terms:
+            try:
+                print(f"[Pexels Video Engine] Searching Pexels HD Footage for '{term}' (Scene {index+1})...")
+                url = f"https://api.pexels.com/videos/search?query={urllib.parse.quote(term)}&orientation={orientation}&size=large&per_page=25"
+                res = requests.get(url, headers=headers, timeout=15)
+                if res.status_code == 200:
+                    data = res.json()
+                    videos = data.get("videos", [])
+                    # Filter videos with duration >= 4 seconds for clean looping
+                    usable_videos = [v for v in videos if v.get("duration", 0) >= 3]
+                    if usable_videos:
+                        random.shuffle(usable_videos)
+                        target_video = usable_videos[0]
+                        video_files = target_video.get("video_files", [])
+                        
+                        # Sort video files by highest resolution (width x height)
+                        video_files_sorted = sorted(
+                            [vf for vf in video_files if vf.get("link") and (vf.get("file_type") == "video/mp4" or ".mp4" in vf.get("link", ""))],
+                            key=lambda x: (x.get("width", 0) * x.get("height", 0)),
+                            reverse=True
+                        )
+                        
+                        best_link = None
+                        if video_files_sorted:
+                            # Prefer highest resolution clip that matches target dimensions
+                            for vf in video_files_sorted:
+                                if vf.get("width", 0) >= width or vf.get("height", 0) >= height:
+                                    best_link = vf.get("link")
+                                    break
+                            if not best_link:
+                                best_link = video_files_sorted[0].get("link")
+                        
+                        if best_link:
+                            print(f"[Pexels Video Engine] Success! Downloading HD Pexels clip ({target_video.get('width')}x{target_video.get('height')}, {target_video.get('duration')}s) for Scene {index+1}...")
+                            vid_resp = requests.get(best_link, stream=True, timeout=60)
+                            temp_vid = output_mp4 + ".temp.mp4"
+                            with open(temp_vid, "wb") as f:
+                                for chunk in vid_resp.iter_content(chunk_size=8192):
+                                    f.write(chunk)
+                            
+                            cmd = [
+                                "ffmpeg", "-y", "-stream_loop", "-1", "-i", temp_vid,
+                                "-vf", f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}",
+                                "-t", str(duration_sec),
+                                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
+                                "-an", output_mp4
+                            ]
+                            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            if os.path.exists(temp_vid):
+                                os.remove(temp_vid)
+                            if os.path.exists(output_mp4):
+                                return True
+            except Exception as e:
+                print(f"[Pexels Video Engine Error] {e}")
+
+
+    # Fallback to procedural
     fps = 30
     if genre_id == "scifi":
         filter_expr = f"mandelbrot=s={width}x{height}:maxiter=120:rate=30:start_x=-0.743643887037158704752191506114774:start_y=0.131825904205311970493132056385139"
@@ -719,7 +843,7 @@ async def generate_audio_edge(text, voice, output_mp3, tts_provider="edge", api_
             print("[TTS Provider] Generating voiceover via ElevenLabs API...")
             url = "https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM"
             headers = {"Accept": "audio/mpeg", "Content-Type": "application/json", "xi-api-key": api_key}
-            payload = {"text": text, "model_id": "eleven_monolingual_v1"}
+            payload = {"text": text, "model_id": "eleven_multilingual_v2"}
             res = requests.post(url, json=payload, headers=headers, timeout=15)
             if res.status_code == 200:
                 with open(output_mp3, "wb") as f:
@@ -732,13 +856,37 @@ async def generate_audio_edge(text, voice, output_mp3, tts_provider="edge", api_
         try:
             communicate = edge_tts.Communicate(text, voice)
             await communicate.save(output_mp3)
-            return True
+            if os.path.exists(output_mp3) and os.path.getsize(output_mp3) > 1000:
+                return True
         except Exception as e:
-            print(f"[TTS Error] edge-tts failed: {e}")
-    
+            print(f"[TTS Error] edge-tts notice: {e}, falling back to gTTS...")
+
+    # Fallback to gTTS (Google Text-to-Speech)
+    try:
+        from gtts import gTTS
+        print("[TTS Provider] Generating full spoken voiceover via gTTS...")
+        lang = "en"
+        voice_lower = str(voice).lower()
+        if "de-" in voice_lower:
+            lang = "de"
+        elif "es-" in voice_lower:
+            lang = "es"
+        elif "fr-" in voice_lower:
+            lang = "fr"
+        tts = gTTS(text=text, lang=lang)
+        tts.save(output_mp3)
+        if os.path.exists(output_mp3) and os.path.getsize(output_mp3) > 1000:
+            print("[TTS Provider] gTTS audio generation successful!")
+            return True
+    except Exception as ge:
+        print(f"[TTS Error] gTTS fallback notice: {ge}")
+
+    # Fallback only if all speech engines fail: compute proportional duration based on word count
+    word_count = len(text.split())
+    fallback_dur = max(10, round(word_count / 2.5))
     cmd = [
         "ffmpeg", "-y", "-f", "lavfi",
-        "-i", f"sine=frequency=440:duration=15",
+        "-i", f"sine=frequency=440:duration={fallback_dur}",
         "-af", "volume=0.05",
         output_mp3
     ]
@@ -774,83 +922,39 @@ def hex_to_rgb(hex_str):
 
 def render_scene_overlay_png(scene_data, genre_config, index, total, video_id="v", width=1080, height=1920):
     overlay_img = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-    
-    theme_hex = genre_config.get("themeColor", "#3B82F6")
-    theme_rgb = hex_to_rgb(theme_hex)
-    
-    search_q = scene_data.get("searchQuery", scene_data["subtitle"])
-    stock_kw = scene_data.get("stockKeyword", "art,cinematic")
-    card_w = width - 120
-    card_h = int(height * 0.44)
-    
-    art_img = fetch_thematic_image(search_q, stock_kw, index, video_id=video_id, target_width=card_w, target_height=card_h)
-    art_img = art_img.resize((card_w, card_h), Image.Resampling.LANCZOS).convert('RGBA')
-    
-    enhancer = ImageEnhance.Brightness(art_img)
-    art_img = enhancer.enhance(0.9)
-    
-    art_x = (width - card_w) // 2
-    art_y = 280
-    overlay_img.paste(art_img, (art_x, art_y))
-    
     draw = ImageDraw.Draw(overlay_img)
-    draw.rounded_rectangle([art_x, art_y, art_x + card_w, art_y + card_h], radius=24, outline=theme_rgb, width=5)
     
-    try:
-        font_title = ImageFont.truetype("arial.ttf", 56)
-        font_badge = ImageFont.truetype("arial.ttf", 36)
-        font_body = ImageFont.truetype("arial.ttf", 44)
-        font_highlight = ImageFont.truetype("arial.ttf", 46)
-        font_footer = ImageFont.truetype("arial.ttf", 32)
-    except Exception:
-        font_title = font_badge = font_body = font_highlight = font_footer = ImageFont.load_default()
+    subtitle = scene_data.get("subtitle", "") if scene_data else ""
+    scene_text = scene_data.get("text", "") if scene_data else ""
+    
+    if subtitle or scene_text:
+        theme_color = genre_config.get("themeColor", "#F59E0B")
+        theme_rgb = hex_to_rgb(theme_color)
         
-    # Header Badge Box
-    badge_text = f"{genre_config['name'].upper()} • SCENE {index+1}/{total}"
-    draw.rounded_rectangle([80, 110, width - 80, 200], radius=20, fill=(15, 23, 42, 235), outline=theme_rgb, width=3)
-    draw.text((width // 2, 155), badge_text, fill=theme_rgb, font=font_badge, anchor="mm")
-    
-    # Subtitle overlay badge inside artwork card
-    sub_title = scene_data["subtitle"]
-    draw.rounded_rectangle([art_x + 30, art_y + 30, art_x + card_w - 30, art_y + 120], radius=16, fill=(0, 0, 0, 220), outline=(255, 255, 255, 60), width=2)
-    draw.text((width // 2, art_y + 75), sub_title, fill=(255, 255, 255), font=font_title, anchor="mm")
-    
-    # Frosted Glass Narration Text Box
-    text_box_y = art_y + card_h + 40
-    text_box_h = height - text_box_y - 250
-    draw.rounded_rectangle([60, text_box_y, width - 60, text_box_y + text_box_h], radius=28, fill=(15, 23, 42, 225), outline=(255, 255, 255, 40), width=2)
-    
-    # Render kinetic highlighted narration text
-    text = scene_data["text"]
-    words = text.split()
-    lines = []
-    current_line = []
-    for w in words:
-        current_line.append(w)
-        if len(" ".join(current_line)) > 26:
-            lines.append(" ".join(current_line[:-1]))
-            current_line = [w]
-    if current_line:
-        lines.append(" ".join(current_line))
+        try:
+            font_title = ImageFont.truetype("arialbd.ttf", max(24, int(height * 0.038)))
+            font_caption = ImageFont.truetype("arial.ttf", max(18, int(height * 0.026)))
+        except:
+            font_title = ImageFont.load_default()
+            font_caption = ImageFont.load_default()
         
-    highlights = [h.upper() for h in scene_data.get("highlightWords", [])]
-    start_y = text_box_y + 70
-    
-    for line in lines:
-        has_hl = any(hl in line.upper() for hl in highlights)
-        if has_hl:
-            draw.text((width // 2 + 2, start_y + 2), line, fill=(0, 0, 0), font=font_highlight, anchor="mm")
-            draw.text((width // 2, start_y), line, fill=(255, 255, 0), font=font_highlight, anchor="mm")
-        else:
-            draw.text((width // 2 + 2, start_y + 2), line, fill=(0, 0, 0), font=font_body, anchor="mm")
-            draw.text((width // 2, start_y), line, fill=(255, 255, 255), font=font_body, anchor="mm")
-        start_y += 75
+        # Top-left scene indicator badge
+        badge_w = int(width * 0.18) if width > height else int(width * 0.35)
+        draw.rounded_rectangle([40, 40, 40 + badge_w, 95], radius=12, fill=(*theme_rgb, 230))
+        draw.text((40 + badge_w // 2, 67), f"SCENE {index + 1}/{total}", fill=(255, 255, 255, 255), font=font_caption, anchor="mm")
         
-    # Kinetic Subtitle Highlight Pill at Bottom
-    hl_sample = highlights[0] if highlights else "MUST WATCH"
-    draw.rounded_rectangle([80, height - 200, width - 80, height - 110], radius=25, fill=theme_rgb)
-    draw.text((width // 2, height - 155), f"🔥 KEY PHRASE: #{hl_sample}", fill=(255, 255, 255), font=font_footer, anchor="mm")
-    
+        # Bottom subtitle bar
+        bar_h = int(height * 0.16)
+        bar_y1 = height - bar_h - int(height * 0.04)
+        bar_y2 = height - int(height * 0.04)
+        draw.rounded_rectangle([60, bar_y1, width - 60, bar_y2], radius=18, fill=(0, 0, 0, 190), outline=(*theme_rgb, 220), width=3)
+        
+        if subtitle:
+            draw.text((width // 2, bar_y1 + int(bar_h * 0.35)), subtitle.upper(), fill=(255, 230, 0, 255), font=font_title, anchor="mm")
+        
+        caption_line = scene_text if len(scene_text) < 80 else scene_text[:77] + "..."
+        draw.text((width // 2, bar_y1 + int(bar_h * 0.72)), caption_line, fill=(255, 255, 255, 240), font=font_caption, anchor="mm")
+
     save_path = os.path.join(IMAGES_DIR, f"{video_id}_overlay_{index}.png")
     overlay_img.save(save_path)
     return save_path
@@ -896,11 +1000,11 @@ def render_thumbnail(script_data, genre_config, thumb_path, video_id="v", width=
     img.save(thumb_path, "JPEG", quality=95)
     return thumb_path
 
-def build_scene_animated_video(genre_id, scene_idx, overlay_png, duration_sec, output_scene_mp4, aspect_ratio="9:16", video_id="v"):
+def build_scene_animated_video(genre_id, scene_idx, overlay_png, duration_sec, output_scene_mp4, aspect_ratio="9:16", video_id="v", scene_data=None):
     w, h = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
     bg_video = os.path.join(IMAGES_DIR, f"bg_anim_{video_id}_{scene_idx}.mp4")
     
-    render_procedural_background_video(genre_id, scene_idx, duration_sec, bg_video, width=w, height=h)
+    render_procedural_background_video(genre_id, scene_idx, duration_sec, bg_video, width=w, height=h, scene_data=scene_data)
     
     cmd_overlay = [
         "ffmpeg", "-y",
@@ -914,12 +1018,13 @@ def build_scene_animated_video(genre_id, scene_idx, overlay_png, duration_sec, o
     subprocess.run(cmd_overlay, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return os.path.exists(output_scene_mp4)
 
-def build_full_animated_video(scene_overlays, genre_id, voice_mp3, bg_music_aac, output_mp4, duration_per_scene=7.0, aspect_ratio="9:16", video_id="v"):
+def build_full_animated_video(scene_overlays, genre_id, voice_mp3, bg_music_aac, output_mp4, duration_per_scene=7.0, aspect_ratio="9:16", video_id="v", script_data=None, nomusic=False, novoice=False):
     scene_clips = []
     for idx, overlay_png in enumerate(scene_overlays):
         scene_mp4 = os.path.join(IMAGES_DIR, f"full_scene_{video_id}_{idx}.mp4")
+        scene_data = script_data["scenes"][idx] if script_data else None
         print(f"[Animation Engine] Rendering Animated Motion Video Clip {idx+1}/{len(scene_overlays)}...")
-        build_scene_animated_video(genre_id, idx, overlay_png, duration_per_scene, scene_mp4, aspect_ratio, video_id)
+        build_scene_animated_video(genre_id, idx, overlay_png, duration_per_scene, scene_mp4, aspect_ratio, video_id, scene_data)
         if os.path.exists(scene_mp4):
             scene_clips.append(scene_mp4)
 
@@ -929,6 +1034,48 @@ def build_full_animated_video(scene_overlays, genre_id, voice_mp3, bg_music_aac,
             clean_c = clip.replace("\\", "/")
             f.write(f"file '{clean_c}'\n")
 
+    if novoice and (nomusic or not bg_music_aac):
+        print(f"[FFmpeg Audio Mixer] Rendering Video ONLY (No Voiceover, No Music) into MP4...")
+        cmd_final = [
+            "ffmpeg", "-y",
+            "-f", "concat", "-safe", "0", "-i", concat_file,
+            "-c:v", "copy",
+            "-an",
+            output_mp4
+        ]
+        subprocess.run(cmd_final, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return os.path.exists(output_mp4)
+
+    if novoice and bg_music_aac and not nomusic:
+        print(f"[FFmpeg Audio Mixer] Mixing Background Music ONLY (No Voiceover) into MP4...")
+        cmd_final = [
+            "ffmpeg", "-y",
+            "-f", "concat", "-safe", "0", "-i", concat_file,
+            "-i", bg_music_aac,
+            "-map", "0:v", "-map", "1:a",
+            "-c:v", "copy",
+            "-c:a", "aac", "-b:a", "192000",
+            "-shortest",
+            output_mp4
+        ]
+        subprocess.run(cmd_final, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return os.path.exists(output_mp4)
+
+    if not novoice and (nomusic or not bg_music_aac):
+        print(f"[FFmpeg Audio Mixer] Mixing Voiceover ONLY (No Background Music) into MP4...")
+        cmd_final = [
+            "ffmpeg", "-y",
+            "-f", "concat", "-safe", "0", "-i", concat_file,
+            "-i", voice_mp3,
+            "-map", "0:v", "-map", "1:a",
+            "-c:v", "copy",
+            "-c:a", "aac", "-b:a", "192000",
+            "-shortest",
+            output_mp4
+        ]
+        subprocess.run(cmd_final, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return os.path.exists(output_mp4)
+        
     cmd_final = [
         "ffmpeg", "-y",
         "-f", "concat", "-safe", "0", "-i", concat_file,
@@ -996,7 +1143,7 @@ def get_audio_duration(audio_file):
         print(f"[Sync Engine Warning] FFprobe duration probe fallback: {e}")
     return 28.0
 
-async def main_pipeline(genre_id, topic=None, privacy_status="unlisted", auto_upload=False, tts_provider="edge", api_key=None):
+async def main_pipeline(genre_id, topic=None, privacy_status="unlisted", auto_upload=False, tts_provider="edge", api_key=None, nomusic=False, novoice=False, num_scenes=4, language="en"):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     random_hash = hashlib.md5(str(random.random()).encode()).hexdigest()[:6]
     video_id = f"vid_{timestamp}_{genre_id}_{random_hash}"
@@ -1005,28 +1152,45 @@ async def main_pipeline(genre_id, topic=None, privacy_status="unlisted", auto_up
     genre_config = get_genre_config(genre_id)
     
     # Step 1: Script & Storyboard Generation
-    print("[1/6] Generating Unique Script & Storyboard...")
-    script_data = generate_script_content(genre_config, topic)
+    print(f"[1/6] Generating Unique Script & Storyboard in language '{language}'...")
+    script_data = generate_script_content(genre_config, topic, num_scenes, language)
     print(f"-> Topic: {script_data['topic']}")
     print(f"-> Title: {script_data['title']}")
     
     # Step 2: Voiceover Narration Synthesis
-    print(f"[2/6] Synthesizing Voiceover Narration (Provider: {tts_provider.upper()})...")
-    voice_file = os.path.join(AUDIO_DIR, f"{video_id}_voice.mp3")
-    voice = genre_config.get("voice", "en-US-ChristopherNeural")
-    await generate_audio_edge(script_data["fullText"], voice, voice_file, tts_provider, api_key)
-    
-    # Step 2b: Measure Voiceover Length & Calculate Exact Per-Scene Duration Sync
-    voice_duration = get_audio_duration(voice_file)
+    voice_file = None
+    voice_duration = 0.0
+    if not novoice:
+        print(f"[2/6] Synthesizing Voiceover Narration (Provider: {tts_provider.upper()})...")
+        voice_file = os.path.join(AUDIO_DIR, f"{video_id}_voice.mp3")
+        voice = genre_config.get("voice", "en-US-ChristopherNeural")
+        if language == "de":
+            voice = "de-DE-KillianNeural"
+        elif language == "es":
+            voice = "es-ES-AlvaroNeural"
+        elif language == "en":
+            voice = "en-US-ChristopherNeural"
+        await generate_audio_edge(script_data["fullText"], voice, voice_file, tts_provider, api_key)
+        
+        # Step 2b: Measure Voiceover Length & Calculate Exact Per-Scene Duration Sync
+        voice_duration = get_audio_duration(voice_file)
+    else:
+        print("[2/6] Skipping Voiceover Narration (--novoice flag provided)...")
+        voice_duration = genre_config.get("durationSec", 30)
+
     total_scenes = max(1, len(script_data["scenes"]))
     total_duration = voice_duration + 0.8  # Add 0.8s natural end padding
     duration_per_scene = round(total_duration / total_scenes, 2)
     print(f"[Sync Engine] Synchronized Scene Timing: {duration_per_scene:.2f} seconds x {total_scenes} scenes = Total Video Duration {total_duration:.2f}s")
     
     # Step 3: Genre Background Music Synthesis
-    print("[3/6] Generating Atmospheric Background Music Track...")
-    bg_music_file = os.path.join(AUDIO_DIR, f"{video_id}_bgmusic.aac")
-    generate_background_music_track(genre_id, total_duration, bg_music_file)
+    bg_music_file = None
+    if not nomusic:
+        print("[3/6] Generating Atmospheric Background Music Track...")
+        bg_music_file = os.path.join(AUDIO_DIR, f"{video_id}_bgmusic.aac")
+        generate_background_music_track(genre_id, total_duration, bg_music_file)
+    else:
+        print("[3/6] Skipping Background Music Generation (--nomusic flag provided)...")
     
     # Step 4: Per-Scene Wikimedia/AI Topic Photo & Transparent Overlay PNG Rendering
     print("[4/6] Fetching Per-Scene Topic-Matched HD Photos & Rendering Transparent Overlays...")
@@ -1046,7 +1210,7 @@ async def main_pipeline(genre_id, topic=None, privacy_status="unlisted", auto_up
     # Step 6: Full 2D/3D Animated Motion Video Compositing & Dual Audio Mixing
     print("[6/6] Rendering Full 2D/3D Motion Video Clips with Dual Audio Tracks...")
     output_mp4 = os.path.join(VIDEOS_DIR, f"{video_id}.mp4")
-    build_full_animated_video(scene_overlays, genre_id, voice_file, bg_music_file, output_mp4, duration_per_scene=duration_per_scene, aspect_ratio=aspect, video_id=video_id)
+    build_full_animated_video(scene_overlays, genre_id, voice_file, bg_music_file, output_mp4, duration_per_scene=duration_per_scene, aspect_ratio=aspect, video_id=video_id, script_data=script_data, nomusic=nomusic, novoice=novoice)
     
     youtube_url = None
     upload_status = "ready_to_upload"
@@ -1063,16 +1227,18 @@ async def main_pipeline(genre_id, topic=None, privacy_status="unlisted", auto_up
                 tags=script_data["tags"],
                 privacy=privacy_status
             )
-            if res and "id" in res:
+            if res and "id" in res and res.get("status") != "simulated":
                 youtube_url = f"https://www.youtube.com/watch?v={res['id']}"
                 upload_status = "uploaded"
+                print(f"[YouTube API] Video uploaded successfully to YouTube: {youtube_url}")
             else:
                 upload_status = "uploaded_simulated"
-                youtube_url = f"https://youtube.com/watch?v=sim_{video_id}"
+                youtube_url = None
+                print("[YouTube API Warning] Live YouTube upload bypassed. OAuth token missing/expired. Running in local simulation mode.")
         except Exception as err:
             print(f"[YouTube API Warning] API upload fallback (simulated mode): {err}")
             upload_status = "uploaded_simulated"
-            youtube_url = f"https://youtube.com/watch?v=sim_{video_id}"
+            youtube_url = None
 
     video_record = {
         "id": video_id,
@@ -1109,7 +1275,12 @@ if __name__ == "__main__":
     parser.add_argument("--upload", action="store_true", help="Auto upload to YouTube")
     parser.add_argument("--provider", type=str, default="edge", help="TTS Provider (edge, elevenlabs)")
     parser.add_argument("--apikey", type=str, default=None, help="TTS API Key")
+    parser.add_argument("--nomusic", action="store_true", help="Skip background music to add custom beats later")
+    parser.add_argument("--novoice", action="store_true", help="Skip voiceover narration")
+    parser.add_argument("--scenes", type=int, default=4, help="Number of scenes to generate (use 1 for a single continuous video)")
+    parser.add_argument("--language", type=str, default="en", help="Language for script and voice (en, de, es)")
     
     args = parser.parse_args()
     
-    asyncio.run(main_pipeline(args.genre, args.topic, args.privacy, args.upload, args.provider, args.apikey))
+    asyncio.run(main_pipeline(args.genre, args.topic, args.privacy, args.upload, args.provider, args.apikey, args.nomusic, args.novoice, args.scenes, args.language))
+
